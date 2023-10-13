@@ -36,7 +36,7 @@ dm <- svydesign(ids = ~ upm,
 apoyo_tab <- svyby(formula = ~apoyo_democracia, 
                    by = ~year, 
                    design = dm,
-                   FUN = svytotal,
+                   FUN = svymean,
                    na.rm = T)
 head(apoyo_tab)
 

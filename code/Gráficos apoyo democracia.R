@@ -6,11 +6,6 @@ library(tidyverse)
 library(survey)
 library(ggplot2)
 
-# Cargamos las librerías
-library(tidyverse)
-library(survey)
-library(ggplot2)
-
 # Leer el archivo CSV
 df <- read.csv("output/ab_04_21.csv", sep = ",")
 
@@ -43,12 +38,26 @@ head(apoyo_tab)
 # Convertir a dataframe regular
 apoyo_df <- as.data.frame(apoyo_tab)
 
-# Gráfico de evolución temporal del apoyo a la democracia
+# Tema para gráficos de ggplot2
+theme_article_corrupcion <-
+  theme_classic(base_size = 14) +
+  theme(panel.grid = element_blank(),
+        plot.title = element_text(color = "grey20"),
+        plot.subtitle = element_text(color = "grey30"),
+        plot.caption = element_text(color = "grey30", hjust = 0, face = 'italic'),
+        legend.background = element_blank())
+
+# Gráfico de evolución temporal del apoyo a la democracia con línea
+
 plot <- ggplot(apoyo_tab, aes(x = year)) +  
-  geom_line(aes(y = apoyo_democraciaApoyo, color = "Apoyo")) +
-  geom_point(aes(y = apoyo_democraciaApoyo, color = "Apoyo")) +
-  geom_line(aes(y = `apoyo_democraciaNo apoyo`, color = "No apoyo")) +
-  geom_point(aes(y = `apoyo_democraciaNo apoyo`, color = "No apoyo")) +
+  geom_line(aes(y = apoyo_democraciaApoyo, color = "Apoyo"), size = 1) +  # Línea 
+  geom_point(aes(y = apoyo_democraciaApoyo, color = "Apoyo"), size = 3) +  # Puntos
+  geom_errorbar(aes(ymin = apoyo_democraciaApoyo - se.apoyo_democraciaApoyo, 
+                    ymax = apoyo_democraciaApoyo + se.apoyo_democraciaApoyo, 
+                    color = "Apoyo"), 
+                width = 0.3) +
+  geom_text(aes(y = apoyo_democraciaApoyo + 0.02, label = scales::percent(apoyo_democraciaApoyo, accuracy = 1)), vjust = 0) + # Agregar porcentajes encima de los puntos
+  scale_color_manual(values = c("Apoyo" = "cyan")) + # Cambiar color a cian
   labs(
     title = "Evolución del apoyo a la democracia en Ecuador (2004-2021)",
     subtitle = "Pregunta: ¿Hasta qué punto está de acuerdo o en desacuerdo con que la democracia es mejor que cualquier otra forma de gobierno?",
@@ -57,6 +66,11 @@ plot <- ggplot(apoyo_tab, aes(x = year)) +
     color = "Categoría"
   ) +
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
-  theme_article_educacion
+  theme_article_corrupcion +
+  theme(legend.position = "none")  # Eliminar la leyenda ya que solo hay una categoría
+
 print(plot)
+
+
+
 

@@ -5,6 +5,8 @@
 library(tidyverse)
 library(survey)
 library(ggplot2)
+library(dplyr)
+library(scales)
 
 # Leer el archivo CSV
 df <- read.csv("output/ab_04_21.csv", sep = ",")
@@ -40,7 +42,7 @@ apoyo_tab <- svyby(formula = ~apoyo_democracia,
 head(apoyo_tab)
 
 # Tema para gráficos de ggplot2
-theme_article_corrupcion <-
+theme_article_democracia <-
   theme_classic(base_size = 14) +
   theme(panel.grid = element_blank(),
         plot.title = element_text(color = "grey20"),
@@ -67,7 +69,7 @@ graph1 <- ggplot(apoyo_tab, aes(x = year)) +
     color = "Categoría"
   ) +
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
-  theme_article_corrupcion +
+  theme_article_democracia +
   theme(legend.position = "none")
 
 print(graph1)
@@ -88,6 +90,14 @@ df$pn4[df$pn4 %in% c(888888, 988888)] <- NA
 # Creación de dummies para las categorías 'Satisfacción' e 'Insatisfacción'
 df$sati_dem <- ifelse(df$pn4 %in% c(1, 2), "Satisfacción", ifelse(df$pn4 %in% c(3, 4), "Insatisfacción", NA))
 df$sati_dem <- as.factor(df$sati_dem)
+
+# Diseño Muestral de apoyo_democracia
+dm <- svydesign(ids = ~ upm,
+                strata = ~ estratopri, 
+                weights = ~ weight1500, 
+                nest = TRUE,
+                na.action = 'na.exclude',
+                data = df)
 
 # Continuar con la tabulación
 satisfaccion_tab <- svyby(formula = ~sati_dem, 
@@ -115,7 +125,7 @@ graph2 <- ggplot(satisfaccion_tab, aes(x = year)) +
     color = "Categoría"
   ) +
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
-  theme_article_corrupcion +
+  theme_article_democracia +
   theme(legend.position = "none")
 
 print(graph2)
@@ -131,26 +141,62 @@ ggsave("figures/grafico_satisfacción.png",plot = graph2,
 # Variable anestg (2021)
 
 # Convertir códigos especiales a NA
-df$q1[df$q1 == 3] <- NA  # Suponiendo que "otro" no es relevante para el análisis
 df$anestg[df$anestg %in% c(888888, 988888)] <- NA
+df$q1[df$q1 == 3] <- NA  # Suponiendo que "otro" no es relevante para el análisis
+
+#Eliminar NAs
+df <- df[!is.na(df$anestg) & !is.na(df$q1), ]
 
 # Creación de la variable dummy en base a los niveles de confianza
-df$confianza_gob <- ifelse(df$anestg %in% 1:2, "Confía", ifelse(df$anestg %in% 3:4, "No confía", NA))
-df$confianza_gob <- factor(df$confianza_gob)
+df$confi_gob <- ifelse(df$anestg %in% 1:2, "Confía", ifelse(df$anestg %in% 3:4, "Desconfianza", NA))
+df$confi_gob <- as.factor(df$confi_gob)
 
+#Relabel variable q1
 df$q1 <- factor(df$q1, levels = c(1, 2), labels = c("Hombre", "Mujer"))
 
-# Tabulación con diseño muestral
-confianza_tab <- svyby(formula = ~confianza_gob, 
+# Diseño Muestral de apoyo_democracia
+dm <- svydesign(ids = ~ upm,
+                strata = ~ estratopri, 
+                weights = ~ weight1500, 
+                nest = TRUE,
+                na.action = 'na.exclude',
+                data = df)
+
+#Tabulación con diseño muestral
+confianza_tab <- svyby(formula = ~confi_gob, 
                        by = ~q1,  
                        design = dm,
                        FUN = svymean,
                        na.rm = TRUE)
 head(confianza_tab)
 
+# Gráfico de barras con líneas de error estándar y etiquetas
+graph3 <- ggplot(data = confianza_tab, aes(x = q1)) +
+  geom_bar(aes(y = confi_gobConfía, fill = "Confía"), stat = "identity", position = position_dodge(width = 0.9)) +
+  geom_bar(aes(y = confi_gobDesconfianza, fill = "Desconfianza"), stat = "identity", position = position_dodge(width = 0.9)) +
+  geom_errorbar(aes(ymin = confi_gobConfía - se.confi_gobConfía, ymax = confi_gobConfía + se.confi_gobConfía),
+                position = position_dodge(width = 0.9), width = 0.25) +
+  geom_errorbar(aes(ymin = confi_gobDesconfianza - se.confi_gobDesconfianza, ymax = confi_gobDesconfianza + se.confi_gobDesconfianza),
+                position = position_dodge(width = 0.9), width = 0.25) +
+  geom_text(aes(y = confi_gobConfía, label = scales::percent(confi_gobConfía, accuracy = 1)), 
+            position = position_dodge(width = 0.9), vjust = -0.5) +
+  geom_text(aes(y = confi_gobDesconfianza, label = scales::percent(confi_gobDesconfianza, accuracy = 1)), 
+            position = position_dodge(width = 0.9), vjust = -0.5) +
+  scale_fill_manual(values = c("Confía" = "cyan", "Desconfianza" = "orange")) +
+  labs(title = "Nivel de Confianza en el Gobierno por Género",
+       x = "Género",
+       y = "Porcentaje de Encuestados",
+       fill = "Nivel de Confianza") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_article_democracia
 
+# Mostrar el gráfico
+print(graph3)
 
-
-
+ggsave("figures/grafico_confianza.png",plot = graph3, 
+       device = "png", 
+       width = 12, 
+       height = 8, 
+       dpi = 1000)
 
 

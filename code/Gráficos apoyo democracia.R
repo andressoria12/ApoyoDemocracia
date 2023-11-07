@@ -49,7 +49,7 @@ theme_article_corrupcion <-
 
 # Gráfico de evolución temporal del apoyo a la democracia con línea
 
-plot <- ggplot(apoyo_tab, aes(x = year)) +  
+graph1 <- ggplot(apoyo_tab, aes(x = year)) +  
   geom_line(aes(y = apoyo_democraciaApoyo, color = "Apoyo"), size = 1) +  # Línea 
   geom_point(aes(y = apoyo_democraciaApoyo, color = "Apoyo"), size = 3) +  # Puntos
   geom_errorbar(aes(ymin = apoyo_democraciaApoyo - se.apoyo_democraciaApoyo, 
@@ -69,7 +69,7 @@ plot <- ggplot(apoyo_tab, aes(x = year)) +
   theme_article_corrupcion +
   theme(legend.position = "none")  # Eliminar la leyenda ya que solo hay una categoría
 
-print(plot)
+print(graph1)
 
 
 

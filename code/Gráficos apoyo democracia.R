@@ -9,6 +9,10 @@ library(ggplot2)
 # Leer el archivo CSV
 df <- read.csv("output/ab_04_21.csv", sep = ",")
 
+#-----------------------------------------GRÁFICO 1---------------------------------
+
+#Variable ing4
+
 # Convertir códigos especiales a NA
 df$ing4[df$ing4 %in% c(888888, 988888)] <- NA
 
@@ -34,9 +38,6 @@ apoyo_tab <- svyby(formula = ~apoyo_democracia,
                    FUN = svymean,
                    na.rm = T)
 head(apoyo_tab)
-
-# Convertir a dataframe regular
-apoyo_df <- as.data.frame(apoyo_tab)
 
 # Tema para gráficos de ggplot2
 theme_article_corrupcion <-
@@ -67,9 +68,88 @@ graph1 <- ggplot(apoyo_tab, aes(x = year)) +
   ) +
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
   theme_article_corrupcion +
-  theme(legend.position = "none")  # Eliminar la leyenda ya que solo hay una categoría
+  theme(legend.position = "none")
 
 print(graph1)
+
+ggsave("figures/grafico_apoyo_demo.png",plot = graph1, 
+       device = "png", 
+       width = 12, 
+       height = 8, 
+       dpi = 1000)
+
+#------------------------------------GRÁFICO 2--------------------------------------
+
+#Variable pn4
+
+# Convertir códigos especiales a NA
+df$pn4[df$pn4 %in% c(888888, 988888)] <- NA
+
+# Creación de dummies para las categorías 'Satisfacción' e 'Insatisfacción'
+df$sati_dem <- ifelse(df$pn4 %in% c(1, 2), "Satisfacción", ifelse(df$pn4 %in% c(3, 4), "Insatisfacción", NA))
+df$sati_dem <- as.factor(df$sati_dem)
+
+# Continuar con la tabulación
+satisfaccion_tab <- svyby(formula = ~sati_dem, 
+                          by = ~year, 
+                          design = dm,
+                          FUN = svymean,
+                          na.rm = TRUE,
+                          keep.names = F)
+head(satisfaccion_tab)
+
+# Gráfico de barras apiladas para mostrar la evolución de la satisfacción
+graph2 <- ggplot(satisfaccion_tab, aes(x = year)) +  
+  geom_line(aes(y = sati_demSatisfacción, color = "Satisfacción"), size = 1) +  # Línea
+  geom_point(aes(y = sati_demSatisfacción, color = "Satisfacción"), size = 3) +  # Puntos
+  geom_errorbar(aes(ymin = sati_demSatisfacción - se.sati_demSatisfacción, 
+                    ymax = sati_demSatisfacción + se.sati_demSatisfacción, 
+                    color = "Satisfacción"), 
+                width = 0.3) +
+  geom_text(aes(y = sati_demSatisfacción + 0.02, label = scales::percent(sati_demSatisfacción, accuracy = 1)), vjust = 0) + # Agregar porcentajes encima de los puntos
+  scale_color_manual(values = c("Satisfacción" = "green")) +  
+  labs(
+    title = "Evolución de la satisfacción con la democracia en Ecuador (2004-2021)",
+    y = "Porcentaje de Satisfacción",
+    x = "Año",
+    color = "Categoría"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_article_corrupcion +
+  theme(legend.position = "none")
+
+print(graph2)
+
+ggsave("figures/grafico_satisfacción.png",plot = graph2, 
+       device = "png", 
+       width = 12, 
+       height = 8, 
+       dpi = 1000)
+
+
+#------------------------------------GRÁFICO 3--------------------------------------
+# Variable anestg (2021)
+
+# Convertir códigos especiales a NA
+df$q1[df$q1 == 3] <- NA  # Suponiendo que "otro" no es relevante para el análisis
+df$anestg[df$anestg %in% c(888888, 988888)] <- NA
+
+# Creación de la variable dummy en base a los niveles de confianza
+df$confianza_gob <- ifelse(df$anestg %in% 1:2, "Confía", ifelse(df$anestg %in% 3:4, "No confía", NA))
+df$confianza_gob <- factor(df$confianza_gob)
+
+df$q1 <- factor(df$q1, levels = c(1, 2), labels = c("Hombre", "Mujer"))
+
+# Tabulación con diseño muestral
+confianza_tab <- svyby(formula = ~confianza_gob, 
+                       by = ~q1,  
+                       design = dm,
+                       FUN = svymean,
+                       na.rm = TRUE)
+head(confianza_tab)
+
+
+
 
 
 

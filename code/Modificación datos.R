@@ -127,6 +127,7 @@ ecu2021$work_2a<-relevel(ecu2021$work_2a, 'Not WF')
 #Crear una dummy que indique si la persona está o no en la población económicamente activa (trabaja o puede trabajar)
 ecu2021$eap<-ifelse(ecu2021$ocup4a == 1 | ecu2021$ocup4a == 2 | ecu2021$ocup4a == 3 | ecu2021$ocup4a == 7, 'EAP', 'Not EAP')
 
+
 #---------------------Variables ligadas al artículo de corrupción------------------------
 #Se harán los cambios si es que son necesarios
 #Variables semejantes en ambos datasets
@@ -146,6 +147,11 @@ class(ecu2021$jc13)
 #Pregunta satisfacción democracia
 class(ab_04_19$pn4)
 class(ecu2021$pn4)
+
+#Aprobación presidencial
+class(ab_04_19$pres_aprov)
+class(ecu2021$m1)
+ecu2021<-rename(ecu2021, 'pres_aprov' = m1)
 
 # Juntar ambos conjuntos de datos por filas
 ab_04_21 <- dplyr::bind_rows(ab_04_19, ecu2021)

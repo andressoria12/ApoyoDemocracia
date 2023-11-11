@@ -3,6 +3,7 @@
 # Preliminares --------------------------------------------------------------------------------------------
 #Cargamos las librerías
 library(tidyverse)
+library(tidyr)
 library(survey)
 library(ggplot2)
 library(dplyr)
@@ -55,12 +56,12 @@ theme_article_democracia <-
 graph1 <- ggplot(apoyo_tab, aes(x = year)) +  
   geom_line(aes(y = apoyo_democraciaApoyo, color = "Apoyo"), size = 1) +  # Línea 
   geom_point(aes(y = apoyo_democraciaApoyo, color = "Apoyo"), size = 3) +  # Puntos
-  geom_errorbar(aes(ymin = apoyo_democraciaApoyo - se.apoyo_democraciaApoyo, 
-                    ymax = apoyo_democraciaApoyo + se.apoyo_democraciaApoyo, 
-                    color = "Apoyo"), 
+  geom_errorbar(aes(ymin = apoyo_democraciaApoyo - (1.96*se.apoyo_democraciaApoyo), 
+                    ymax = apoyo_democraciaApoyo + (1.96*se.apoyo_democraciaApoyo), 
+                    color = "black"), 
                 width = 0.3) +
-  geom_text(aes(y = apoyo_democraciaApoyo + 0.02, label = scales::percent(apoyo_democraciaApoyo, accuracy = 1)), vjust = 0) + # Agregar porcentajes encima de los puntos
-  scale_color_manual(values = c("Apoyo" = "cyan")) + # Cambiar color a cian
+  geom_text(aes(y = apoyo_democraciaApoyo + 0.02, label = scales::percent(apoyo_democraciaApoyo, accuracy = 1)), vjust = -1.5) + # Agregar porcentajes encima de los puntos
+  scale_color_manual(values = c("Apoyo" = "cyan")) + 
   labs(
     title = "Evolución del apoyo a la democracia en Ecuador (2004-2021)",
     subtitle = "Pregunta: ¿Hasta qué punto está de acuerdo o en desacuerdo con que la democracia es mejor que cualquier otra forma de gobierno?",
@@ -112,12 +113,12 @@ head(satisfaccion_tab)
 graph2 <- ggplot(satisfaccion_tab, aes(x = year)) +  
   geom_line(aes(y = sati_demSatisfacción, color = "Satisfacción"), size = 1) +  # Línea
   geom_point(aes(y = sati_demSatisfacción, color = "Satisfacción"), size = 3) +  # Puntos
-  geom_errorbar(aes(ymin = sati_demSatisfacción - se.sati_demSatisfacción, 
-                    ymax = sati_demSatisfacción + se.sati_demSatisfacción, 
-                    color = "Satisfacción"), 
+  geom_errorbar(aes(ymin = sati_demSatisfacción - (1.96*se.sati_demSatisfacción), 
+                    ymax = sati_demSatisfacción + (1.96*se.sati_demSatisfacción), 
+                    color = "black"), 
                 width = 0.3) +
-  geom_text(aes(y = sati_demSatisfacción + 0.02, label = scales::percent(sati_demSatisfacción, accuracy = 1)), vjust = 0) + # Agregar porcentajes encima de los puntos
-  scale_color_manual(values = c("Satisfacción" = "green")) +  
+  geom_text(aes(y = sati_demSatisfacción + 0.02, label = scales::percent(sati_demSatisfacción, accuracy = 1)), vjust = -2) + # Agregar porcentajes encima de los puntos
+  scale_color_manual(values = c("Satisfacción" = "orange")) +  
   labs(
     title = "Evolución de la satisfacción con la democracia en Ecuador (2004-2021)",
     y = "Porcentaje de Satisfacción",
@@ -138,21 +139,25 @@ ggsave("figures/grafico_satisfacción.png",plot = graph2,
 
 
 #------------------------------------GRÁFICO 3--------------------------------------
-# Variable anestg (2021)
+# Variable anestg (2021) y pres_aprov 
 
 # Convertir códigos especiales a NA
 df$anestg[df$anestg %in% c(888888, 988888)] <- NA
-df$q1[df$q1 == 3] <- NA  # Suponiendo que "otro" no es relevante para el análisis
+df$pres_aprov[df$pres_aprov %in% c(888888, 988888)] <- NA
 
 #Eliminar NAs
-df <- df[!is.na(df$anestg) & !is.na(df$q1), ]
+df <- df[!is.na(df$anestg) & !is.na(df$pres_aprov), ]
 
 # Creación de la variable dummy en base a los niveles de confianza
 df$confi_gob <- ifelse(df$anestg %in% 1:2, "Confía", ifelse(df$anestg %in% 3:4, "Desconfianza", NA))
 df$confi_gob <- as.factor(df$confi_gob)
 
-#Relabel variable q1
-df$q1 <- factor(df$q1, levels = c(1, 2), labels = c("Hombre", "Mujer"))
+# Dummies de variable m1
+df$pres_apr <- ifelse(df$pres_aprov %in% 1:2, "Bueno",
+                       ifelse(df$pres_aprov == 3, "Regular",
+                              ifelse(df$pres_aprov %in% 4:5, "Malo", NA)))
+df$pres_apr <- as.factor(df$pres_apr)
+
 
 # Diseño Muestral de apoyo_democracia
 dm <- svydesign(ids = ~ upm,
@@ -164,30 +169,38 @@ dm <- svydesign(ids = ~ upm,
 
 #Tabulación con diseño muestral
 confianza_tab <- svyby(formula = ~confi_gob, 
-                       by = ~q1,  
+                       by = ~pres_apr,  
                        design = dm,
                        FUN = svymean,
                        na.rm = TRUE)
 head(confianza_tab)
 
-# Gráfico de barras con líneas de error estándar y etiquetas
-graph3 <- ggplot(data = confianza_tab, aes(x = q1)) +
-  geom_bar(aes(y = confi_gobConfía, fill = "Confía"), stat = "identity", position = position_dodge(width = 0.9)) +
-  geom_bar(aes(y = confi_gobDesconfianza, fill = "Desconfianza"), stat = "identity", position = position_dodge(width = 0.9)) +
-  geom_errorbar(aes(ymin = confi_gobConfía - se.confi_gobConfía, ymax = confi_gobConfía + se.confi_gobConfía),
-                position = position_dodge(width = 0.9), width = 0.25) +
-  geom_errorbar(aes(ymin = confi_gobDesconfianza - se.confi_gobDesconfianza, ymax = confi_gobDesconfianza + se.confi_gobDesconfianza),
-                position = position_dodge(width = 0.9), width = 0.25) +
-  geom_text(aes(y = confi_gobConfía, label = scales::percent(confi_gobConfía, accuracy = 1)), 
-            position = position_dodge(width = 0.9), vjust = -0.5) +
-  geom_text(aes(y = confi_gobDesconfianza, label = scales::percent(confi_gobDesconfianza, accuracy = 1)), 
-            position = position_dodge(width = 0.9), vjust = -0.5) +
+# Transformar los datos a un formato largo
+confianza_long <- pivot_longer(confianza_tab, 
+                               cols = starts_with("confi_gob"), 
+                               names_to = "Nivel_Confianza", 
+                               values_to = "Porcentaje")
+
+# Separar el nivel de confianza en dos columnas: una para la condición (Confía/Desconfianza) y otra para el error estándar
+confianza_long <- confianza_long %>% 
+  mutate(Condicion = ifelse(str_detect(Nivel_Confianza, "Confía"), "Confía", "Desconfianza"),
+         SE = ifelse(Condicion == "Confía", se.confi_gobConfía, se.confi_gobDesconfianza))
+
+#Columnas coincidan con tu dataframe
+confianza_long$Nivel_Confianza <- factor(confianza_long$Nivel_Confianza, levels = c("confi_gobConfía", "confi_gobDesconfianza"))
+
+# Gráfico de confianza por aprobación presidencial 
+graph3 <- ggplot(confianza_long, aes(x = pres_apr, y = Porcentaje, fill = Condicion)) +
+  geom_col(position = position_dodge(width = 0.7)) +
+  geom_errorbar(aes(ymin = Porcentaje - SE, ymax = Porcentaje + SE), 
+                position = position_dodge(width = 0.7), width = 0.25) +
+  geom_text(aes(label = scales::percent(Porcentaje, accuracy = 0.1)),
+            position = position_dodge(width = 0.7), vjust = -2, size = 3) +
+  scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = c("Confía" = "cyan", "Desconfianza" = "orange")) +
-  labs(title = "Nivel de Confianza en el Gobierno por Género",
-       x = "Género",
-       y = "Porcentaje de Encuestados",
-       fill = "Nivel de Confianza") +
-  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  labs(x = "Aprobación Presidencial", y = "Porcentaje", 
+       fill = "Nivel de Confianza", 
+       title = "Confianza en el Gobierno por Aprobación Presidencial") +
   theme_article_democracia
 
 # Mostrar el gráfico
@@ -198,5 +211,3 @@ ggsave("figures/grafico_confianza.png",plot = graph3,
        width = 12, 
        height = 8, 
        dpi = 1000)
-
-
